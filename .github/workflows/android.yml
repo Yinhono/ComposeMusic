@@ -1,23 +1,40 @@
-name: Android Watch CI
+name: Watch App CI
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'watch/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'watch/**'
+      - '.github/workflows/**'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.3.0
 
       - name: Setup Java
         uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
           java-version: '17'
+          cache: 'gradle'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
@@ -25,26 +42,21 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 添加调试步骤
-      - name: Enable Debug Log
-        run: |
-          echo "::debug::Enable Gradle Debug Logging"
-          echo "DEBUG=true" >> $GITHUB_ENV
-
-      - name: Print Gradle Version
-        run: ./gradlew --version
-
-      - name: Print Kotlin Version
-        run: ./gradlew dependencies | grep kotlin
-
-      - name: Print Dependencies
-        run: ./gradlew dependencies
-
       - name: Build Watch Debug APK
-        run: ./gradlew :watch:assembleDebug -Dorg.gradle.logging.level=DEBUG
+        run: ./gradlew :watch:assembleDebug
+        
+      - name: Run Watch Module Tests
+        run: ./gradlew :watch:testDebug
 
       - name: Upload Watch Debug APK
         uses: actions/upload-artifact@v3
         with:
           name: watch-debug-apk
-          path: watch/build/outputs/apk/debug/watch-debug.apk
+          path: watch/build/outputs/apk/debug/*.apk
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: watch-test-results
+          path: watch/build/reports/tests/testDebug
