@@ -1,80 +1,36 @@
-name: Watch App CI
+name: Android CI
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - 'watch/**'
-      - '.github/workflows/**'
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
-    paths:
-      - 'watch/**'
-      - '.github/workflows/**'
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3.3.0
 
-      - name: Setup Java
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
         uses: actions/setup-java@v3
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Clean Project
-        run: ./gradlew clean
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
 
-      - name: Show Project Structure
-        run: ./gradlew :watch:projects
-
-      - name: Show Dependencies
-        run: ./gradlew :watch:dependencies
-
-      - name: Build Watch Debug APK with Debug Info
-        run: |
-          ./gradlew :watch:assembleDebug --stacktrace --info
-        
-      - name: Check Hilt Generated Files
-        if: failure()
-        run: |
-          echo "Checking Hilt generated files..."
-          find . -name "*_HiltComponents.java"
-          find . -name "*_HiltModules.java"
-
-      - name: Upload Build Reports
-        if: failure()
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v3
         with:
-          name: build-reports
-          path: |
-            watch/build/reports/
-            watch/build/tmp/kapt3/
-            watch/build/generated/
-
-      - name: Upload Watch Debug APK
-        if: success()
-        uses: actions/upload-artifact@v3
-        with:
-          name: watch-debug-apk
-          path: watch/build/outputs/apk/debug/*.apk
+          name: debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
